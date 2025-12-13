@@ -171,14 +171,12 @@
             <input type="hidden" name="message" id="message_hidden">
 
             <div class="input-group">
-                <label>Comprovante de Pagamento *</label>
+                <label>Comprovante de Pagamento * (max 500KB)</label>
                 <div class="file-input-wrapper">
                     <label for="paymentProof" class="file-input-label">Anexe o comprovante</label>
-                    <!-- ALTERAÇÃO AQUI -->
                     <input
                         type="file"
                         id="paymentProof"
-                        name="payment_proof"
                         accept="image/*,.pdf"
                     >
                 </div>
@@ -222,21 +220,71 @@ document.getElementById('backButton').onclick = () => {
 };
 
 document.getElementById('paymentProof').addEventListener('change', e => {
-    document.getElementById('fileName').textContent =
-        e.target.files[0]?.name || 'Nenhum arquivo selecionado';
+    const file = e.target.files[0];
+    if (!file) {
+        document.getElementById('fileName').textContent = 'Nenhum arquivo selecionado';
+        return;
+    }
+    
+    // Check file size (500KB limit to avoid 413 error)
+    const maxSize = 500 * 1024; // 500KB
+    if (file.size > maxSize) {
+        alert('Arquivo muito grande! Por favor, envie um arquivo menor que 500KB.');
+        e.target.value = '';
+        document.getElementById('fileName').textContent = 'Nenhum arquivo selecionado';
+        return;
+    }
+    
+    document.getElementById('fileName').textContent = file.name;
 });
 
 document.querySelector('#submissionForm button').onclick = () => {
     const form = document.getElementById('submissionForm');
-    emailjs.sendForm('service_jwp8w1g', 'template_djc9cz7', form)
-        .then(() => {
-            document.getElementById('formPage').classList.add('hidden');
-            document.getElementById('successPage').classList.remove('hidden');
-        })
-        .catch(err => {
-            alert('Erro ao enviar. Veja o console.');
-            console.error(err);
-        });
+    const fileInput = document.getElementById('paymentProof');
+    const file = fileInput.files[0];
+    
+    // Set hidden fields
+    document.getElementById('valor_hidden').value = currentPrice.toFixed(2);
+    document.getElementById('palavras_hidden').value = document.getElementById('wordCount').value;
+    
+    if (!file) {
+        alert('Por favor, anexe o comprovante de pagamento!');
+        return;
+    }
+    
+    // Convert file to base64
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        
+        // Set the base64 in hidden field
+        document.getElementById('comprovante_hidden').value = base64;
+        document.getElementById('message_hidden').value = `
+Nome: ${document.getElementById('name_input').value}
+WhatsApp: ${document.getElementById('phone').value}
+Email: ${document.getElementById('email_input').value}
+Link: ${document.getElementById('docsLink').value}
+Valor: R$ ${currentPrice.toFixed(2)}
+Palavras: ${document.getElementById('wordCount').value}
+        `.trim();
+        
+        // Send with EmailJS
+        emailjs.sendForm('service_jwp8w1g', 'template_djc9cz7', form)
+            .then(() => {
+                document.getElementById('formPage').classList.add('hidden');
+                document.getElementById('successPage').classList.remove('hidden');
+            })
+            .catch(err => {
+                if (err.status === 413) {
+                    alert('Arquivo muito grande! Por favor, envie um comprovante menor (max 500KB) ou envie pelo WhatsApp.');
+                } else {
+                    alert('Erro ao enviar. Tente novamente ou entre em contato pelo WhatsApp.');
+                }
+                console.error(err);
+            });
+    };
+    
+    reader.readAsDataURL(file);
 };
 </script>
 </body>
