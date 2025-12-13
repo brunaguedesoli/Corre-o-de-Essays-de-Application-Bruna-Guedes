@@ -167,20 +167,9 @@
 
             <input type="hidden" name="valor" id="valor_hidden">
             <input type="hidden" name="palavras" id="palavras_hidden">
-            <input type="hidden" name="comprovante" id="comprovante_hidden">
-            <input type="hidden" name="message" id="message_hidden">
 
-            <div class="input-group">
-                <label>Comprovante de Pagamento * (max 500KB)</label>
-                <div class="file-input-wrapper">
-                    <label for="paymentProof" class="file-input-label">Anexe o comprovante</label>
-                    <input
-                        type="file"
-                        id="paymentProof"
-                        accept="image/*,.pdf"
-                    >
-                </div>
-                <div class="file-name" id="fileName">Nenhum arquivo selecionado</div>
+            <div class="pix-info" style="background: #fff3cd; border-left-color: #ffc107;">
+                <strong>⚠️ Importante:</strong> Após enviar este formulário, envie o comprovante de pagamento via WhatsApp para confirmar sua revisão.
             </div>
 
             <button type="button" class="cta-button">Enviar Solicitação</button>
@@ -189,8 +178,12 @@
 
     <div id="successPage" class="hidden">
         <div class="success-message">
-            <h2>Solicitação Enviada com Sucesso!</h2>
-            <p>Você receberá retorno por e-mail.</p>
+            <h2>✅ Solicitação Enviada com Sucesso!</h2>
+            <p style="margin: 15px 0;">Você receberá retorno por e-mail.</p>
+            <p style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                <strong>📱 Próximo passo:</strong><br>
+                Envie o comprovante de pagamento via WhatsApp para confirmar sua revisão.
+            </p>
         </div>
     </div>
 
@@ -219,72 +212,33 @@ document.getElementById('backButton').onclick = () => {
     document.getElementById('mainPage').classList.remove('hidden');
 };
 
-document.getElementById('paymentProof').addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) {
-        document.getElementById('fileName').textContent = 'Nenhum arquivo selecionado';
-        return;
-    }
-    
-    // Check file size (500KB limit to avoid 413 error)
-    const maxSize = 500 * 1024; // 500KB
-    if (file.size > maxSize) {
-        alert('Arquivo muito grande! Por favor, envie um arquivo menor que 500KB.');
-        e.target.value = '';
-        document.getElementById('fileName').textContent = 'Nenhum arquivo selecionado';
-        return;
-    }
-    
-    document.getElementById('fileName').textContent = file.name;
-});
-
 document.querySelector('#submissionForm button').onclick = () => {
     const form = document.getElementById('submissionForm');
-    const fileInput = document.getElementById('paymentProof');
-    const file = fileInput.files[0];
+    const name = document.getElementById('name_input').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email_input').value.trim();
+    const link = document.getElementById('docsLink').value.trim();
     
-    // Set hidden fields
-    document.getElementById('valor_hidden').value = currentPrice.toFixed(2);
-    document.getElementById('palavras_hidden').value = document.getElementById('wordCount').value;
-    
-    if (!file) {
-        alert('Por favor, anexe o comprovante de pagamento!');
+    // Validate required fields
+    if (!name || !phone || !email || !link) {
+        alert('Por favor, preencha todos os campos obrigatórios!');
         return;
     }
     
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const base64 = e.target.result;
-        
-        // Set the base64 in hidden field
-        document.getElementById('comprovante_hidden').value = base64;
-        document.getElementById('message_hidden').value = `
-Nome: ${document.getElementById('name_input').value}
-WhatsApp: ${document.getElementById('phone').value}
-Email: ${document.getElementById('email_input').value}
-Link: ${document.getElementById('docsLink').value}
-Valor: R$ ${currentPrice.toFixed(2)}
-Palavras: ${document.getElementById('wordCount').value}
-        `.trim();
-        
-        // Send with EmailJS
-        emailjs.sendForm('service_jwp8w1g', 'template_djc9cz7', form)
-            .then(() => {
-                document.getElementById('formPage').classList.add('hidden');
-                document.getElementById('successPage').classList.remove('hidden');
-            })
-            .catch(err => {
-                if (err.status === 413) {
-                    alert('Arquivo muito grande! Por favor, envie um comprovante menor (max 500KB) ou envie pelo WhatsApp.');
-                } else {
-                    alert('Erro ao enviar. Tente novamente ou entre em contato pelo WhatsApp.');
-                }
-                console.error(err);
-            });
-    };
+    // Set hidden fields
+    document.getElementById('valor_hidden').value = 'R$ ' + currentPrice.toFixed(2).replace('.', ',');
+    document.getElementById('palavras_hidden').value = document.getElementById('wordCount').value;
     
-    reader.readAsDataURL(file);
+    // Send with EmailJS
+    emailjs.sendForm('service_jwp8w1g', 'template_djc9cz7', form)
+        .then(() => {
+            document.getElementById('formPage').classList.add('hidden');
+            document.getElementById('successPage').classList.remove('hidden');
+        })
+        .catch(err => {
+            alert('Erro ao enviar. Tente novamente ou entre em contato pelo WhatsApp.');
+            console.error(err);
+        });
 };
 </script>
 </body>
