@@ -4,17 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Correção de Essay Profissional</title>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <script type="text/javascript">
-        (function(){
-            try {
-                emailjs.init("1BvdNaJEUkYjlSQhC");
-                console.log('EmailJS inicializado com sucesso');
-            } catch (error) {
-                console.error('Erro ao inicializar EmailJS:', error);
-            }
-        })();
-    </script>
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -111,6 +101,15 @@
         }
         input[type="file"] { position: absolute; left: -9999px; }
         .file-name { margin-top: 8px; color: #666; font-size: 0.9em; text-align: center; }
+
+        .error-message {
+            background: #f8d7da;
+            color: #842029;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border: 1px solid #f5c2c7;
+        }
     </style>
 </head>
 <body>
@@ -144,35 +143,49 @@
             <strong>Valor:</strong> <span id="formPrice">R$ 0,00</span>
         </div>
 
-        <form id="submissionForm">
+        <!-- FORMSPREE -->
+        <form
+            id="submissionForm"
+            action="https://formspree.io/f/xjknldok"
+            method="POST"
+            enctype="multipart/form-data"
+        >
             <div class="input-group">
                 <label>Nome completo *</label>
-                <input type="text" id="name_input" name="name">
+                <input type="text" id="name_input" name="name" required>
             </div>
 
             <div class="input-group">
                 <label>WhatsApp *</label>
-                <input type="tel" id="phone" name="whatsapp">
+                <input type="tel" id="phone" name="whatsapp" required>
             </div>
 
             <div class="input-group">
                 <label>E-mail *</label>
-                <input type="email" id="email_input" name="email">
+                <input type="email" id="email_input" name="email" required>
             </div>
 
             <div class="input-group">
-                <label>Link da essay no Google Docs *</label>
-                <input type="text" id="docsLink" name="link_docs">
+                <label>Link da essay no Google Docs (acesso para edição) *</label>
+                <input type="text" id="docsLink" name="link_docs" required>
             </div>
 
             <input type="hidden" name="valor" id="valor_hidden">
             <input type="hidden" name="palavras" id="palavras_hidden">
 
-            <div class="pix-info" style="background: #fff3cd; border-left-color: #ffc107;">
-                <strong>⚠️ Importante:</strong> Após enviar este formulário, envie o comprovante de pagamento via WhatsApp para confirmar sua revisão.
+            <!-- UPLOAD DO COMPROVANTE -->
+            <div class="input-group">
+                <label>Comprovante de Pagamento (Pix) *</label>
+                <div class="file-input-wrapper">
+                    <label for="paymentProof" class="file-input-label">Anexe o comprovante</label>
+                    <input type="file" id="paymentProof" name="payment_proof" accept="image/*,.pdf" required>
+                </div>
+                <div class="file-name" id="fileName">Nenhum arquivo selecionado</div>
             </div>
 
-            <button type="button" class="cta-button">Enviar Solicitação</button>
+            <button type="button" class="cta-button" id="submitBtn">Enviar Solicitação</button>
+
+            <div id="errorBox" class="error-message hidden"></div>
         </form>
     </div>
 
@@ -180,10 +193,6 @@
         <div class="success-message">
             <h2>✅ Solicitação Enviada com Sucesso!</h2>
             <p style="margin: 15px 0;">Você receberá retorno por e-mail.</p>
-            <p style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px;">
-                <strong>📱 Próximo passo:</strong><br>
-                Envie o comprovante de pagamento via WhatsApp para confirmar sua revisão.
-            </p>
         </div>
     </div>
 
@@ -193,53 +202,106 @@
 let currentPrice = 0;
 const pricePerWord = 0.40;
 
-document.getElementById('wordCount').addEventListener('input', e => {
+const wordCountEl = document.getElementById('wordCount');
+const totalPriceEl = document.getElementById('totalPrice');
+const formPriceEl = document.getElementById('formPrice');
+
+const mainPage = document.getElementById('mainPage');
+const formPage = document.getElementById('formPage');
+const successPage = document.getElementById('successPage');
+
+const submissionForm = document.getElementById('submissionForm');
+const submitBtn = document.getElementById('submitBtn');
+const errorBox = document.getElementById('errorBox');
+
+wordCountEl.addEventListener('input', e => {
     currentPrice = (parseInt(e.target.value) || 0) * pricePerWord;
-    document.getElementById('totalPrice').textContent =
-        'R$ ' + currentPrice.toFixed(2).replace('.', ',');
+    totalPriceEl.textContent = 'R$ ' + currentPrice.toFixed(2).replace('.', ',');
 });
 
 document.getElementById('scheduleButton').onclick = () => {
     if (!currentPrice) return alert('Calcule o valor primeiro!');
-    document.getElementById('mainPage').classList.add('hidden');
-    document.getElementById('formPage').classList.remove('hidden');
-    document.getElementById('formPrice').textContent =
-        'R$ ' + currentPrice.toFixed(2).replace('.', ',');
+    mainPage.classList.add('hidden');
+    formPage.classList.remove('hidden');
+    formPriceEl.textContent = 'R$ ' + currentPrice.toFixed(2).replace('.', ',');
 };
 
 document.getElementById('backButton').onclick = () => {
-    document.getElementById('formPage').classList.add('hidden');
-    document.getElementById('mainPage').classList.remove('hidden');
+    formPage.classList.add('hidden');
+    mainPage.classList.remove('hidden');
 };
 
-document.querySelector('#submissionForm button').onclick = () => {
-    const form = document.getElementById('submissionForm');
+document.getElementById('paymentProof').addEventListener('change', e => {
+    document.getElementById('fileName').textContent =
+        e.target.files[0]?.name || 'Nenhum arquivo selecionado';
+});
+
+function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.classList.remove('hidden');
+}
+function hideError() {
+    errorBox.textContent = '';
+    errorBox.classList.add('hidden');
+}
+
+submitBtn.onclick = async () => {
+    hideError();
+
+    // Required checks (extra segurança)
     const name = document.getElementById('name_input').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email_input').value.trim();
     const link = document.getElementById('docsLink').value.trim();
-    
-    // Validate required fields
-    if (!name || !phone || !email || !link) {
-        alert('Por favor, preencha todos os campos obrigatórios!');
+    const file = document.getElementById('paymentProof').files[0];
+
+    if (!name || !phone || !email || !link || !file) {
+        alert('Por favor, preencha todos os campos obrigatórios e anexe o comprovante!');
         return;
     }
-    
+
     // Set hidden fields
-    document.getElementById('valor_hidden').value = 'R$ ' + currentPrice.toFixed(2).replace('.', ',');
-    document.getElementById('palavras_hidden').value = document.getElementById('wordCount').value;
-    
-    // Send with EmailJS
-    emailjs.sendForm('service_jwp8w1g', 'template_djc9cz7', form)
-        .then(() => {
-            document.getElementById('formPage').classList.add('hidden');
-            document.getElementById('successPage').classList.remove('hidden');
-        })
-        .catch(err => {
-            alert('Erro ao enviar. Tente novamente ou entre em contato pelo WhatsApp.');
-            console.error(err);
+    document.getElementById('valor_hidden').value =
+        'R$ ' + currentPrice.toFixed(2).replace('.', ',');
+    document.getElementById('palavras_hidden').value = wordCountEl.value;
+
+    // Disable button
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+
+    try {
+        const formData = new FormData(submissionForm);
+
+        const res = await fetch(submissionForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
         });
+
+        if (res.ok) {
+            formPage.classList.add('hidden');
+            successPage.classList.remove('hidden');
+            submissionForm.reset();
+            document.getElementById('fileName').textContent = 'Nenhum arquivo selecionado';
+        } else {
+            let data = null;
+            try { data = await res.json(); } catch {}
+            const msg = (data && data.errors && data.errors[0] && data.errors[0].message)
+                ? data.errors[0].message
+                : 'Erro ao enviar. Verifique o tamanho do arquivo e tente novamente.';
+            showError(msg);
+        }
+    } catch (err) {
+        console.error(err);
+        showError('Falha de conexão ao enviar. Tente novamente.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enviar Solicitação';
+    }
 };
 </script>
 </body>
 </html>
+
